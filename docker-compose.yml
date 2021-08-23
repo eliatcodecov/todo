@@ -1,0 +1,55 @@
+version: '3.8'
+
+volumes:
+  postgres-todoapp-volume:
+
+services:
+  redis:
+    image: redis:alpine
+    container_name: todo-redis
+
+  postgres:
+    image: postgres:11.1-alpine
+    container_name: todo-postgres
+    environment:
+      - POSTGRES_USER=laraveltodoapp
+      - POSTGRES_PASSWORD=laraveltodoapp
+      - POSTGRES_DB=laraveltodoapp
+    volumes:
+      - postgres-todoapp-volume:/var/lib/postgresql/data
+    ports:
+      - '4005:5432'
+
+  todo:
+    image: eliatcodecov/todo:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.test
+      args:
+        BASE_IMAGE: eliatcodecov/todo-base:latest
+    environment:
+      APP_ENV: local
+    container_name: todo-web
+    ports:
+      - '4000:8080'
+    volumes:
+      - .:/var/www/app
+      - ../laravel-codecov-opentelemetry:/var/deps/laravel-codecov-opentelemetry
+
+
+  processor:
+    image: eliatcodecov/todo-processor:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        BASE_IMAGE: eliatcodecov/todo-base:latest
+    command: php artisan queue:listen
+    environment:
+      APP_ENV: local
+    container_name: todo-processor
+    ports:
+      - '4001:8080'
+    volumes:
+      - .:/var/www/app
+      - ../laravel-codecov-opentelemetry:/var/deps/laravel-codecov-opentelemetry

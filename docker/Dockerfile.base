@@ -1,0 +1,44 @@
+FROM alpine:3.14
+
+# Install packages and remove default server definition
+RUN apk update && apk upgrade && \
+    apk --no-cache add php8 php8-fpm php8-opcache php8-mysqli php8-json \
+    php8-openssl php8-curl php8-soap php8-zlib php8-xml php8-phar php8-intl php8-dom php8-xmlreader php8-ctype php8-session php8-simplexml php8-pdo php8-pdo_pgsql \
+    php8-mbstring php8-gd curl nginx supervisor php8-exif php8-zip php8-fileinfo php8-iconv php8-soap php8-bcmath php8-pgsql php8-tokenizer \
+    php8-pecl-imagick php8-pecl-redis php8-xmlwriter php8-pear php8-dev gcc musl-dev make
+
+# Symling php8 => php
+RUN ln -s /usr/bin/php8 /usr/bin/php
+RUN ln -s /usr/bin/phpize8 /usr/bin/phpize
+RUN ln -s /usr/bin/php-config8 /usr/bin/php-config
+
+#install pcov
+RUN wget https://github.com/FriendsOfPHP/pickle/releases/download/v0.6.0/pickle.phar && mv pickle.phar /usr/local/bin/pickle && chmod +x /usr/local/bin/pickle
+RUN pickle install pcov
+RUN echo "extension=pcov.so" > /etc/php8/conf.d/php-ext-pcov.ini
+RUN echo "pcov.enable=1" >> /etc/php8/conf.d/php-ext-pcov.ini
+
+
+
+
+# Setup document root
+RUN mkdir -p /var/www/app
+
+COPY docker/fpm-pool.conf /etc/php8/php-fpm.d/www.conf
+COPY docker/php.ini /etc/php8/conf.d/custom.ini
+COPY docker/nginx.conf /etc/nginx/nginx.conf
+COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY docker/start-fpm.sh /usr/local/bin/start-fpm
+
+RUN  addgroup -S application \
+    && adduser -D -u 1000 -S codecov -G application
+
+RUN chmod +x /usr/local/bin/start-fpm && chown codecov:application /usr/local/bin/start-fpm
+
+RUN chown -R codecov.application /var/www/app && \
+    chown -R codecov.application /run && \
+    chown -R codecov.application /var/lib/nginx && \
+    chown -R codecov.application /var/log/nginx
+
+RUN wget -q -O /usr/local/bin/berglas https://storage.googleapis.com/berglas/main/linux_amd64/berglas && \
+    chmod +x /usr/local/bin/berglas

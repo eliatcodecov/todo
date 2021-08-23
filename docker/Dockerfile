@@ -1,0 +1,10 @@
+ARG BASE_IMAGE
+FROM $BASE_IMAGE
+# Switch to use a non-root user from here on
+USER codecov
+
+# Add application
+WORKDIR /var/www/app
+COPY --chown=codecov:application . /var/www/app/
+EXPOSE 8080
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
